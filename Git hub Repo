@@ -1,0 +1,41 @@
+import datasets
+from transformers import GPT2Tokenizer, GPT2LMHeadModel, TextDataset, DataCollatorForLanguageModeling, Trainer, TrainingArguments
+
+# Load JavaScript documentation dataset from the provided link
+js_dataset = datasets.load_dataset('text', data_files='path_to_js_documentation.txt')
+
+# Tokenize the dataset using GPT-2 tokenizer
+tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+tokenized_datasets = js_dataset.map(lambda examples: tokenizer(examples['text'], truncation=True), batched=True)
+
+# Prepare the dataset for language modeling task
+lm_datasets = tokenized_datasets.map(
+    lambda examples: {'input_ids': examples['input_ids'], 'labels': examples['input_ids']}
+)
+
+# Load pre-trained GPT-2 model
+model = GPT2LMHeadModel.from_pretrained('gpt2')
+
+# Define training arguments
+training_args = TrainingArguments(
+    per_device_train_batch_size=4,
+    num_train_epochs=3,
+    logging_dir='./logs',
+    output_dir='./output',
+    overwrite_output_dir=True,
+)
+
+# Instantiate Trainer
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
+    train_dataset=lm_datasets["train"],
+    eval_dataset=lm_datasets["validation"],
+)
+
+# Train the model
+trainer.train()
+
+# Save the trained model
+trainer.save_model('./javascript_gpt2')
